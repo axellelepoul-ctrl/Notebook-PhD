@@ -1,0 +1,525 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+plot(cars)
+
+df9 = read.csv("PhD.dataset.csv", na.strings = "")
+summary(df9)
+
+nombre_lignes <- nrow(df9)
+print(nombre_lignes)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+#Nettoyage de la df parce que ya beaucoup de données qui sont absentes mais pas prises juste avec la commande du dessus
+
+
+# Nettoyage : convertir certaines valeurs en NA
+df9 <- df9 %>%
+  mutate(across(where(is.character), ~ na_if(., "NA"))) %>%
+  mutate(across(where(is.character), ~ na_if(., "na"))) %>%
+  mutate(across(where(is.character), ~ na_if(., ""))) %>% # prendre aussi les cellules vides
+  mutate(across(where(is.character), ~ na_if(., "unknown")))
+
+
+# Compter les NA par colonne
+nb_na <- colSums(is.na(df9))
+
+# Créer un tableau résumé
+summary_df <- data.frame(
+  Discipline = names(nb_na),
+  NAs = nb_na
+)
+print(summary_df)
+```
+```{r}
+Donnees_manquantes <- data.frame
+  Donnees_manquantes <- data.frame(
+  Discipline = names(nb_na),
+  DonneesManquantes = round(nb_na / nombre_lignes * 100, 2),
+  DonneesPresentes = round(100 - (nb_na / nombre_lignes * 100), 2))
+  
+print(Donnees_manquantes) #calcul le pourcentage des données présentes
+  
+  
+#Donnees_manquantes$DonneesManquantes <- paste0(Donnees_manquantes$DonneesManquantes, "%") #pour rajouter le signe %
+#Donnees_manquantes$DonneesPresentes <- paste0(Donnees_manquantes$DonneesPresentes, "%")
+
+```
+
+
+```{r}
+ggplot(Donnees_manquantes, aes(x = DonneesManquantes, y = Discipline)) + 
+  geom_tile(aes(fill = DonneesManquantes), color = "white", width = 10, height = 1) +
+  scale_fill_gradient2(low = "#EBACA2", high = "#BED3C3", mid = "#4A919E", midpoint = 50) +
+  theme_minimal() +
+  labs(title = "Heatmap des données manquantes", x = "% de données manquantes", y = "Colonnes")
+
+
+```
+```{r}
+#créer une matrice avec les données manquantes et présentes
+DM_matrix <- as.matrix(Donnees_manquantes[, c("DonneesManquantes", "DonneesPresentes")])
+rownames(DM_matrix) <- Donnees_manquantes$Discipline  #utiliser la colonne Discipline comme noms de lignes
+
+library(heatmaply) #heatmap interractive avec heatmaply
+heatmaply(DM_matrix) #on peut juste mettre une matrice dans la fonction
+
+heatmaply( #les arguments changent la couleur de la heatmap
+  DM_matrix,
+  colors = viridis(n = 256,  option = "magma"),
+  k_col = 2, 
+  k_row = 2
+)
+```
+```{r}
+library(pheatmap) #un autre moyen de faire une heatmap
+
+pheatmap(DM_matrix, 
+         main = "Heatmap des données manquantes",
+         cluster_rows = FALSE,   # Pas de clustering des lignes
+         cluster_cols = FALSE,   # Pas de clustering des colonnes
+         show_rownames = TRUE,   # Afficher les noms des lignes
+         show_colnames = TRUE,   # Afficher les noms des colonnes
+         color = colorRampPalette(c("white", "#CE6A6B"))(50))  # Palette de couleurs
+```
+```{r}
+#install.packages("lubridate")
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+
+# Créer une copie de df9 en la nommant dates pour ne pas modifier df9
+dates <- df9 %>%
+  mutate(
+    # Convertir la colonne Date.de.soutenance en date
+    Date.de.soutenance = dmy(Date.de.soutenance),
+    
+    # Créer la colonne Mois
+    Mois = month(Date.de.soutenance, label = TRUE, abbr = FALSE)
+  ) %>%
+  
+  # Supprimer les lignes où Mois est NA
+  filter(!is.na(Mois)) %>%
+  
+  # Filtrer les années entre 1984 et 2018
+  filter(year(Date.de.soutenance) >= 1984 & year(Date.de.soutenance) <= 2018)
+
+# Afficher le résultat
+print(head(dates))
+
+
+
+```
+
+
+```{r}
+library(dplyr)
+
+#on compte le nombre de fois où chaque mois appraît pour une soutenance
+mois_count <- dates %>%
+  group_by(Mois) %>%
+  summarise(Nombre = n())
+  
+print(mois_count)
+```
+
+```{r}
+library(ggplot2)
+
+#création de graphique du nombre de soutenance en fonction des mois jusqu'en 2018
+ggplot(mois_count, aes(x = Mois, y = Nombre, group = 1)) +
+  geom_line(color = "#BED3C3", size = 1) +  
+  labs(title = "Distribution des mois de soutenance (1984-2018)",
+       x = "Mois",
+       y = "Nombre de soutenances") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal()
+```
+```{r}
+library(dplyr)
+
+dates2 <- df9 %>%
+  mutate(Date.de.soutenance = dmy(Date.de.soutenance)) %>%
+  filter(year(Date.de.soutenance) >= 2005 & year(Date.de.soutenance) <= 2018) %>% #on prend les soutenances de 2005 à 2018
+  mutate(Mois = month(Date.de.soutenance, label = TRUE, abbr = FALSE)) #créer la colonne du mois de soutenance
+```
+
+
+```{r}
+library(dplyr)
+
+mois_count2 <- dates2 %>% #on crée une nouvelle variable qui va compter l'apparition de chacun des mois
+  group_by(Mois) %>% #on part de la colonne mois que l'on vient de créer
+  summarise(Nombre = n()) #on crée nombre qui regroupe la récurrence de chacun des mois, numérique
+  
+print(mois_count2)
+```
+
+```{r}
+#création d'un nouveau df avec les données qui nous intéresse
+proportion_data <- dates2 %>%
+  mutate(Annee = year(Date.de.soutenance), Mois = month(Date.de.soutenance, label = TRUE, abbr = FALSE)) %>%
+  
+  #on s'intéresse à l'année et au mois associés à la date de soutenance
+  group_by(Annee, Mois) %>%
+  summarise(Nombre = n()) %>%
+  #nombre = le nombre d'apparition de soutenance par mois
+  mutate(Total = sum(Nombre), Proportion = round(Nombre / Total * 100, 1)) %>%
+  ungroup()
+
+# Vérifier les données obtenues
+head(proportion_data)
+```
+```{r}
+#graphique pour le nombre de soutenance faites de 2005 à 2018 en fonction du mois
+ggplot(proportion_data, aes(x = Mois, y = Proportion, group = 1)) +
+  geom_col(fill = "#CE6A6B", width = 0.7) +  # Ajuster la largeur des barres
+  labs(title = "Proportion des soutenances par mois (2005-2018)",
+       x = "Mois",
+       y = "Proportion des soutenances") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # on incline le texte qui affiche les mois pour que ce soit lisible
+  facet_wrap(~ Annee, ncol = 3)  # on met trois facettes par colonne
+  
+  #La proportion des soutanances en javier baisse drastiquement entre 2005 et 2018. Elle baisse fortement entre 2011 et 2016. Les autres mois sont davantage representés au fil du temps. On peut penser que plus d'informations ont été renseignées.
+```
+
+```{r}
+library(dplyr)
+
+#voir chaque graphique pour chaque année
+for (annee in unique(proportion_data$Annee)) {
+  # Créer le graphique
+  plot <- ggplot(proportion_data %>% filter(Annee == annee), aes(x = Mois, y = Proportion, group = 1)) +
+    geom_line(color = "#4A919E", size = 1) +
+    labs(title = paste("Proportion des soutenances par mois en", annee),
+         x = "Mois",
+         y = "Proportion des soutenances") +
+    theme_minimal()
+    
+  print(plot) #montre tous les graphiques un par un en grand
+  # Enregistrer le graphique
+  ggsave(filename = paste0("graphique_", annee, ".png"), plot = plot)  # Utiliser `plot` pour spécifier le graphique
+}
+```
+
+```{r}
+#calculer la moyenne et l'erreur-type des proportions par mois
+summary_data <- proportion_data %>%
+  group_by(Mois) %>%
+  summarise(
+    Moyenne = mean(Proportion, na.rm = TRUE),
+    ErreurType = sd(Proportion, na.rm = TRUE) / sqrt(n()),  # Erreur-type
+    .groups = 'drop'
+  )
+```
+
+
+```{r}
+#Graphique avec erreur type
+ggplot(summary_data, aes(x = Mois, y = Moyenne)) +
+  geom_col(fill = "#BED3C3") + #on rempli les colonnes en bleu
+  geom_errorbar(aes(ymin = Moyenne - ErreurType, ymax = Moyenne + ErreurType), 
+                width = 0.2, color = "#EBACA2") +  #créer l'erreur type en agradissant l'axe ndes x et des y
+  labs(title = "Moyenne des proportions de soutenances par mois (1988-2018)",
+       x = "Mois",
+       y = "Moyenne des Proportions") +
+  theme_minimal()
+```
+
+```{r}
+library(dplyr)
+library(lubridate)
+
+# Convertir Date.de.soutenance en date si nécessaire
+df9 <- df9 %>%
+  mutate(Date.de.soutenance = dmy(Date.de.soutenance))
+
+# Filtrer les données pour exclure le 1er janvier
+filtered_data <- df9 %>%
+  filter(!(month(Date.de.soutenance) == 1 & day(Date.de.soutenance) == 1))  # Exclure le 1er janvier
+
+# Extraire le mois et compter le nombre de soutenances par mois
+mois_count3 <- filtered_data %>%
+  mutate(Mois = month(Date.de.soutenance, label = TRUE, abbr = FALSE)) %>%
+  group_by(Mois) %>%
+  summarise(Nombre = n()) %>%
+  mutate(Proportion = round(Nombre / sum(Nombre) * 100, 1))
+
+# Afficher le résultat
+head(mois_count3)
+```
+
+
+```{r}
+mois_count3 <- filtered_data %>%
+     mutate(Mois = month(Date.de.soutenance, label = TRUE, abbr = FALSE),  # Extraire le mois
+            Annee = year(Date.de.soutenance)) %>%  # Extraire l'année
+     group_by(Annee, Mois) %>%  # Grouper par année et mois
+     summarise(Nombre = n(), .groups = 'drop') %>%  # Compter le nombre de soutenances
+     group_by(Annee) %>%  # Regrouper par année pour le total
+     mutate(Proportion = round(Nombre / sum(Nombre) * 100, 1),  # Calculer la proportion par mois
+            Total = sum(Nombre)) %>%  # Ajouter une colonne Total par année
+    ungroup()  # Défaire le groupement pour éviter des problèmes dans les opérations suivantes
+ 
+# Afficher les résultats
+print(mois_count3)
+```
+```{r}
+library(dplyr)
+
+#les données pour les thèses soutenues sans le 1er janvier
+
+statistiques_mois <- mois_count3 %>%
+  group_by(Mois) %>%  # Grouper par mois
+  summarise(Moyenne2 = mean(Nombre),  # Calculer la moyenne
+            EcartType2 = sd(Nombre),  # Calculer l'écart type
+            Total2 = sum(Nombre)) %>%  # Total des soutenances par mois
+  ungroup()  
+```
+
+
+```{r}
+# Graphique avec moyenne et écart type
+library(ggplot2)
+
+ggplot(statistiques_mois, aes(x = Mois, y = Moyenne2)) +
+  geom_col(fill = "#BED3C3") +  # Remplir les colonnes en bleu
+  geom_errorbar(aes(ymin = Moyenne2 - EcartType2, ymax = Moyenne2 + EcartType2), 
+                width = 0.2, color = "#EBACA2") +  # Créer l'erreur type
+  labs(title = "Moyenne des soutenances par mois (1988-2018)",
+       x = "Mois",
+       y = "Moyenne des soutenances") +
+  theme_minimal()
+```
+
+```{r}
+#prendre toutes les soutenances faites le 1er janvier
+library(lubridate) #pour pouvoir utiliser la fonction month
+
+janvier_data <- df9 %>%
+  filter((month(Date.de.soutenance) == 1 & day(Date.de.soutenance) == 1)) %>%
+  filter((year(Date.de.soutenance) >= 1988))  #Garder toutes les soutenances faites le 1er janvier
+  
+#On compte
+janvier_count <- janvier_data %>%
+  group_by(annee = year(Date.de.soutenance)) %>%  # Grouper par année
+  summarise(nombre_soutenances = n())  # Compter le nombre de soutenances
+  
+#On prend la proportion de thèse soutenues le 1er janvier par rapport aux thèses soutenues chaque années
+theses_par_annee <- df9 %>%
+  filter(year(Date.de.soutenance) >= 1988) %>%
+  filter(year(Date.de.soutenance) <=2018) %>%
+  mutate(annee = year(`Date.de.soutenance`)) %>%  # Extraire l'année de Date.de.soutenance
+  group_by(annee) %>%                             # Grouper par année
+  summarise(nombre_total = n())
+  
+  janvier_count_complet <- theses_par_annee %>%
+  left_join(theses_par_annee, by = "annee")
+```
+
+
+```{r}
+#On fait un graphique 
+library(ggplot2)
+
+ggplot(data = janvier_count, aes(x = annee, y = nombre_soutenances), size = 1) +
+  geom_line(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Nombre de soutenances faites le 1er janvier par année (1988-2008)", x = "Années", y = "Nombre de soutenances")
+```
+```{r}
+#Trouver tout ceux qui s'appellent Cécile Martin
+
+library(dplyr)
+
+cecile <- df9 %>%
+  filter(Auteur == "Cecile Martin")
+  
+#Il peut être difficile de déterminer à quel individu un enregistrement se rapporte, ce qui peut entraîner des erreurs dans l'attribution des thèses, des publications ou des citations.
+#Lorsqu'un homonyme est cité dans des articles ou des revues, cela peut conduire à des références incorrectes
+#Les homonymes peuvent entraîner des doublons dans la base de données.
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Créer une nouvelle table avec les directeurs et le nombre de thèses qu'ils encadrent
+directeurs_theses <- df9 %>%
+  separate_rows(`Directeur.de.these`, sep = ",\\s*") %>%  # Séparer les co-auteurs
+  filter(`Directeur.de.these` != "Directeur de these inconnu") %>%  # Enlever les directeurs inconnus
+  group_by(Directeur = `Directeur.de.these`) %>%  # Grouper par directeur
+  summarise(nombre_theses_encadrees = n(), .groups = 'drop') %>%  # Compter le nombre de thèses par directeur
+  arrange(desc(nombre_theses_encadrees))  # Trier par nombre décroissant
+
+# Compter le nombre total de thèses
+total_theses <- sum(directeurs_theses$nombre_theses_encadrees)
+
+# Sélectionner les 1% des directeurs qui encadrent le plus de thèses
+# Puisqu'il y a 119866 directeurs, on prend 1% soit environ 1198 directeurs
+top_directeurs <- directeurs_theses %>%
+  arrange(desc(nombre_theses_encadrees)) %>%  # Trier par nombre de thèses décroissant
+  slice_head(n = 1198)  # Prendre les 1198 premiers directeurs
+
+# Nombre de thèses encadrées par les 1198 premiers directeurs
+total_theses_top <- sum(top_directeurs$nombre_theses_encadrees)
+
+# Calculer le pourcentage de thèses encadrées par les 1% de directeurs les plus actifs
+pourcentage_top <- (total_theses_top / total_theses) * 100
+
+# Afficher le résultat
+cat("Le pourcentage de thèses encadrées par 1% des directeurs est :", pourcentage_top, "%\n")
+
+```
+```{r}
+library(dplyr)
+library(lubridate)
+
+# Créer la variable Langage.rec pour les langues
+langue_these <- df9 %>%
+  mutate(Langage.rec = case_when(
+    Langue.de.la.these == "fr" ~ "Français",
+    Langue.de.la.these == "en" ~ "Anglais",
+    Langue.de.la.these %in% c("enfr", "fren") ~ "Bilingue",
+    is.na(Langue.de.la.these) ~ NA_character_,
+    TRUE ~ "Autre"
+  ))
+
+# Mettre la date de soutenance au format YYYY-MM-DD puis extraire l'année
+langue_these <- langue_these %>%
+  mutate(Date.soutenance = ymd(Date.de.soutenance))
+
+# Créer un nouveau tableau pour compter les occurrences de chaque langue par année
+langue_annee <- langue_these %>%
+  filter(!is.na(Langage.rec), year(Date.soutenance) > 1982) %>%  # Filtrer les langues non-nulles et années après 1982
+  group_by(Annee = format(Date.soutenance, "%Y"), Langue = Langage.rec) %>%  # Grouper par année et langue
+  summarize(Count = n(), .groups = 'drop') %>%  # Compter le nombre de soutenances par langue et par année
+  group_by(Annee) %>%
+  mutate(Pourcentage = round(100 * Count / sum(Count), 2)) %>%  # Calculer le pourcentage par langue
+  arrange(Annee, Langue) %>%
+  ungroup()
+
+# Filtrer les années spécifiques à exclure
+langue_annee <- langue_annee %>%
+  filter(!Annee %in% c("1976", "1979", "1980", "1982"))
+
+# Afficher le résultat pour vérification
+head(langue_annee)
+
+```
+
+```{r}
+library(dplyr)
+
+langue_annee_grouped <- langue_these %>%
+  filter(!is.na(Langage.rec), year(Date.soutenance) > 1982) %>%  #retirer les NA et filtrer les années après 1982
+  mutate(GroupeAnnee = paste0((year(Date.soutenance) %/% 2) * 2, "-", (year(Date.soutenance) %/% 2) * 2 + 1)) %>%  # Grouper les années par paires
+  group_by(GroupeAnnee, Langue = Langage.rec) %>%
+  summarize(Count = n(), .groups = 'drop') %>%  # Calculer le nombre de soutenances par groupe d'années et par langue
+  group_by(GroupeAnnee) %>%  # Regrouper par groupe d'années
+  mutate(Pourcentage = round(100 * Count / sum(Count), 2)) %>%  # Calculer le pourcentage par groupe d'années
+  arrange(GroupeAnnee, Langue)
+```
+
+
+```{r}
+couleurs_langues <- c(
+  "Français" = "#BED3C3",  
+  "Anglais" = "#EBACA2",   
+  "Bilingue" = "#CE6A6B",  
+  "Autre" = "#4A919E"      
+)
+
+#Graphique utilisation des langues en fonction du temps
+library(ggplot2)
+
+ggplot(langue_annee_grouped, aes(x = GroupeAnnee, y = Pourcentage, fill = Langue)) +
+  geom_bar(stat = "identity", position = "fill", width = 0.7) +  # Diagramme de barres empilées
+  scale_y_continuous(labels = scales::percent_format()) +  # Afficher les pourcentages sur l'axe Y
+  scale_fill_manual(values = couleurs_langues) + #pour modifier les couleurs de chaque catégories, définies plus haut
+  labs(title = "Répartition des thèses par langue chaque année",
+       x = "Année",
+       y = "Pourcentage",
+       fill = "Langue") +  # Ajouter des labels
+  theme_minimal() +  # Thème minimal pour un graphique plus esthétique
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),  # Rotation des années pour lisibilité
+        plot.title = element_text(hjust = 0.5, size = 15),  # Centrer le titre
+        legend.position = "bottom")  # Placer la légende en bas
+```
+
+```{r}
+langue_annee_grouped2 <- langue_annee_grouped %>%
+  mutate(GroupeAnnee = factor(GroupeAnnee, levels = unique(GroupeAnnee)))
+
+head(langue_annee_grouped2)
+
+langue_annee_grouped2 <- langue_annee_grouped2 %>%
+  mutate(GroupeAnnee = as.factor(GroupeAnnee),
+         Langue = as.factor(Langue),
+         Pourcentage = as.numeric(Pourcentage))
+
+langue_annee_grouped2 <- langue_annee_grouped2 %>%
+  mutate(Langue = factor(Langue, levels = c("Français", "Anglais", "Bilingue", "Autre")))
+
+
+
+```
+
+```{r}
+ggplot(langue_annee_grouped2, aes(x = GroupeAnnee, y = Pourcentage, color = Langue, group = Langue)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = c("#BED3C3", "#EBACA2", "#CE6A6B", "#4A919E")) +
+  labs(title = "Évolution de la proportion des thèses par langue",
+       x = "Groupe d'Années", y = "Pourcentage des thèses") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+
+```{r}
+ggplot(langue_annee_grouped2 %>% filter(Langue == "Anglais"), 
+       aes(x = GroupeAnnee, y = Pourcentage, fill = Langue)) +
+  geom_bar(stat = "identity", color = "black") +
+  scale_fill_manual(values = c("#EBACA2")) +
+  labs(title = "Évolution de la proportion de thèses en Anglais",
+       x = "Groupe d'Années", y = "Pourcentage des thèses") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+```{r}
+ggplot(langue_annee_grouped2, aes(x = GroupeAnnee, y = Langue, fill = Pourcentage)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "#CE6A6B") +
+  labs(title = "Heatmap de la répartition des thèses par langue et année",
+       x = "Groupe d'Années", y = "Langue", fill = "Pourcentage") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+ggplot(langue_annee_grouped2, aes(x = as.numeric(GroupeAnnee), y = Pourcentage, color = Langue)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", aes(group = Langue), linetype = "dashed") +
+  scale_color_manual(values = c("#BED3C3", "#EBACA2", "#CE6A6B", "#4A919E")) +
+  labs(title = "Proportions des thèses par langue et année",
+       x = "Groupe d'Années", y = "Pourcentage des thèses") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+```{r}
+
+```
+
